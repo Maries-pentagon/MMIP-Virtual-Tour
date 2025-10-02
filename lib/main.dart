@@ -1,5 +1,3 @@
-//import 'dart:ffi';
-import 'dart:isolate';
 import 'dart:math';
 //import 'dart:nativewrappers/_internal/vm/lib/isolate_patch.dart' hide ReceivePort, Isolate;
 import 'package:flutter/material.dart';
@@ -7,7 +5,6 @@ import 'package:panorama_viewer/panorama_viewer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
-import 'dart:js' as js; // Import for JavaScript interop
 
 void main() => runApp(const MyApp());
 final ScrollController _scrollController = ScrollController();
@@ -43,9 +40,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   bool _isVRMode = false;
   bool _isAutoViewer = false;
   double _isviewerSpeed = 0.0;
-  bool _hasGyroscopePermission = false; // New state for gyroscope permission
+  bool _hasGyroscopePermission = true; // New state for gyroscope permission
   bool _isAppLoading = true; // New state for preloader
-  double _vrIPD = 65.0;
+  final double _vrIPD = 65.0;
 
   Widget _buildActionButton({
     required IconData icon,
@@ -92,7 +89,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     'enterence2',
     'innovation_parlc',
     'zebra1',
-    'unicornMeet',
+    'camel_room',
     'path_to_gf',
     'mini_con',
     'unicorn_room',
@@ -164,7 +161,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     'Center for HR',
     'Center for HR ',
     'Center for BDA',
-    'First Floor',
+    'FF Side',
     'Center for PR',
     'Center for CI',
     'DSRI Lab',
@@ -225,8 +222,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   ];
 
   // final GlobalKey<PanoramaViewerState> _panoramaKey = GlobalKey<PanoramaViewerState>();
-  Map<String, AnimationController> _controllers = {};
-  Map<String, Animation<double>> _animations = {};
+  final Map<String, AnimationController> _controllers = {};
+  final Map<String, Animation<double>> _animations = {};
 
   // Normalized (0-1) positions for each panorama on the new site map image
   // These are best-guess mappings to the blue pins on the map, adjust as needed for accuracy
@@ -259,9 +256,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   final List<Offset> mapMarkerPositions_mobile = [
     //ground floor map places
     Offset(0.5800, 0.5200),
-    Offset(0.7100, 0.4500),
-    Offset(0.7200, 0.3600),
     Offset(0.6400, 0.4500),
+    Offset(0.7200, 0.3600),
+    Offset(0.7100, 0.4500),
     Offset(0.8200, 0.3500),
     Offset(0.6300, 0.3700),
     Offset(0.5000, 0.2400),
@@ -314,7 +311,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _checkAndRequestDeviceOrientationPermission(); // Call this early
     _loadMarkerPositions();
     _editablePositions = List<Offset>.from(mapMarkerPositions);
     _editablePositions_mobile = List<Offset>.from(mapMarkerPositions_mobile);
@@ -332,7 +328,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _controllers.values.forEach((controller) => controller.dispose());
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     _controllers.clear();
     _scrollController.dispose();
     super.dispose();
@@ -391,59 +389,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     }
   }
 
-  // Function to check and request Device Orientation permission for iOS
-  Future<void> _checkAndRequestDeviceOrientationPermission() async {
-    // Check if DeviceOrientationEvent is supported by the browser
-    if (!js.context.hasProperty('DeviceOrientationEvent')) {
-      setState(() {
-        _hasGyroscopePermission = false;
-        _sensorControl = SensorControl.none; // Fallback to touch if no support
-      });
-      print("Device does not support Device Orientation (gyroscope).");
-      return;
-    }
-
-    // Check for requestPermission for iOS 13+ Safari
-    if (js.context['DeviceOrientationEvent'].hasProperty('requestPermission')) {
-      try {
-        final String? permissionState =
-            await js.context['DeviceOrientationEvent'].callMethod(
-                  'requestPermission',
-                )
-                as String?;
-        if (permissionState == 'granted') {
-          setState(() {
-            _hasGyroscopePermission = true;
-            _sensorControl = SensorControl.orientation; // Enable gyroscope
-          });
-          print("Device orientation permission granted.");
-        } else {
-          setState(() {
-            _hasGyroscopePermission = false;
-            _sensorControl = SensorControl.none; // Fallback to touch
-          });
-          print("Device orientation permission denied.");
-        }
-      } catch (e) {
-        setState(() {
-          _hasGyroscopePermission = false;
-          _sensorControl = SensorControl.none; // Fallback to touch
-        });
-        print("Error requesting device orientation permission: $e");
-      }
-    } else {
-      // Non-iOS or older iOS, typically permissions are automatic or not required
-      setState(() {
-        _hasGyroscopePermission = true; // Assume available and granted
-        _sensorControl =
-            SensorControl.orientation; // Enable gyroscope by default
-      });
-      print(
-        "Device Orientation Event available (no explicit permission needed).",
-      );
-    }
-  }
-
   List<List<Hotspot>> get panoHotspots {
     // Define the tripod logo hotspot
     Hotspot tripodLogoHotspot = hotspot(
@@ -458,7 +403,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         imagePath: 'assets/MRF/tripodLogo.png',
         color: Colors.transparent,
       ),
-      animationType: 'pulse',
+      animationType: 'none',
       animationDuration: 20,
       number: null,
     );
@@ -2462,8 +2407,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                         transform:
                             Matrix4.identity()
                               ..rotateX(tilt)
-                              ..rotateZ(rotation)
-                              ..scale(scale),
+                              ..rotateZ(rotation),
                         child: Image(
                           image: getArrowImageProvider(style),
                           width: 80 * scale,
@@ -2478,8 +2422,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   transform:
                       Matrix4.identity()
                         ..rotateX(tilt)
-                        ..rotateZ(rotation)
-                        ..scale(scale),
+                        ..rotateZ(rotation),
+
                   child: _buildAnimatedArrow(
                     animationType: animationType,
                     animation: animation,
@@ -2556,9 +2500,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     }
 
     Widget panoramaWidget = PanoramaViewer(
-      //key: ValueKey(_panoId.toString() + _sensorControl.toString()),
       animSpeed: _isviewerSpeed,
-      key: ValueKey('${_panoId}_${_sensorControl.index}_${_isviewerSpeed}'),
+      key: ValueKey('${_panoId}_${_sensorControl.index}_$_isviewerSpeed'),
       sensorControl: _sensorControl,
       latitude: initialViews[_panoId]['lat']!,
       longitude: initialViews[_panoId]['lon']!,
@@ -2569,7 +2512,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     );
 
     // // VR mode:
-    Widget _buildVREye({required double eyeOffset, required bool isLeftEye}) {
+    Widget buildVREye({required double eyeOffset, required bool isLeftEye}) {
       return PanoramaViewer(
         key: ValueKey(
           'vr_${isLeftEye ? 'left' : 'right'}_{$_panoId}_{$_isviewerSpeed}_${_sensorControl.index}',
@@ -2603,7 +2546,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       final ipdOffset = _vrIPD / 10; // Convert mm to degrees roughly
 
       return Container(
-        key: ValueKey('${_panoId}_${_sensorControl.index}_${_isviewerSpeed}'),
+        key: ValueKey('${_panoId}_${_sensorControl.index}_$_isviewerSpeed'),
         color: Colors.black,
         child: Row(
           children: [
@@ -2616,14 +2559,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 ),
               ),
               child: ClipRect(
-                child: _buildVREye(eyeOffset: -ipdOffset, isLeftEye: true),
+                child: buildVREye(eyeOffset: -ipdOffset, isLeftEye: true),
               ),
             ),
             // Right Eye View
-            Container(
+            SizedBox(
               width: eyeWidth,
               child: ClipRect(
-                child: _buildVREye(eyeOffset: ipdOffset, isLeftEye: false),
+                child: buildVREye(eyeOffset: ipdOffset, isLeftEye: false),
               ),
             ),
           ],
@@ -2747,32 +2690,29 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
                       // Gyroscope/touch toggle button
                       Visibility(
-                        visible: _hasGyroscopePermission,
+                        visible: true,
                         child: IconButton(
                           color: Colors.white,
                           icon: Icon(
-                            _sensorControl == SensorControl.orientation
+                            _hasGyroscopePermission
                                 ? Icons.screen_rotation
                                 : Icons.pan_tool,
                             color: Colors.white,
                           ),
                           tooltip:
-                              _sensorControl == SensorControl.orientation
+                              _hasGyroscopePermission
                                   ? 'Gyroscope ON (Tap to use Touch)'
                                   : 'Touch ON (Tap to use Gyroscope)',
                           onPressed: () {
                             // Only allow toggling if gyroscope is supported and permission is granted
-                            if (_hasGyroscopePermission) {
-                              setState(() {
-                                _sensorControl =
-                                    _sensorControl == SensorControl.orientation
-                                        ? SensorControl.none
-                                        : SensorControl.orientation;
-                              });
-                            } else {
-                              // If gyroscope is not available or permission denied, try to request again
-                              _checkAndRequestDeviceOrientationPermission();
-                            }
+                            setState(() {
+                              _sensorControl =
+                                  _hasGyroscopePermission
+                                      ? SensorControl.orientation
+                                      : SensorControl.none;
+                              _hasGyroscopePermission =
+                                  !_hasGyroscopePermission;
+                            });
                           },
                         ),
                       ),
@@ -2861,7 +2801,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                   ),
                                   child: Stack(
                                     children: [
-                                      Container(
+                                      SizedBox(
                                         height: 90,
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(
@@ -2886,7 +2826,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                               0.4,
                                             ),
                                           ),
-                                          child: Text(" " + placeNames[index]),
+                                          child: Text(" ${placeNames[index]}"),
                                         ),
                                       ),
                                     ],
@@ -2964,9 +2904,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           Image.asset(
             'assets/MRF/logo.png',
             width:
-                MediaQuery.of(context).size.width < 600
-                    ? 70
-                    : 120, // Adjust size as needed
+                MediaQuery.of(context).size.width > 480 &&
+                        MediaQuery.of(context).size.height > 700
+                    ? 120
+                    : 70, // Adjust size as needed
             //        height:  MediaQuery.of(context).size.height < 600 ? 125 :150, // Adjust size as needed
           ),
         ],
@@ -3088,14 +3029,13 @@ class _MapOverlayDialog extends StatefulWidget {
     required this.mapMarkerPositions_tab,
     required this.currentId,
     required this.onJumpToPanorama,
-    super.key,
   });
   @override
   State<_MapOverlayDialog> createState() => _MapOverlayDialogState();
 }
 
 class _MapOverlayDialogState extends State<_MapOverlayDialog> {
-  bool _fullscreen = false;
+  final bool _fullscreen = false;
   List<Offset> _editablePositions = [];
   List<Offset> _editablePositions_mobile = [];
   List<Offset> _editablePositions_tab = [];
@@ -3164,7 +3104,7 @@ class _MapOverlayDialogState extends State<_MapOverlayDialog> {
                               int.parse(widget.mapPlaces[index][1]),
                             );
                           },
-                          child: Container(
+                          child: SizedBox(
                             width: 40,
                             height: 20,
                             child: Center(
@@ -3188,7 +3128,7 @@ class _MapOverlayDialogState extends State<_MapOverlayDialog> {
                     right: 20,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.deepOrange,
+                        color: Colors.orange,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: IconButton(
@@ -3275,7 +3215,7 @@ class _MapOverlayDialogState extends State<_MapOverlayDialog> {
                               int.parse(widget.mapPlaces[index][1]),
                             );
                           },
-                          child: Container(
+                          child: SizedBox(
                             width: 40,
                             height: 20,
                             child: Center(
@@ -3386,7 +3326,7 @@ class _MapOverlayDialogState extends State<_MapOverlayDialog> {
                               int.parse(widget.mapPlaces[index][1]),
                             );
                           },
-                          child: Container(
+                          child: SizedBox(
                             width: 40,
                             height: 20,
                             child: Center(
